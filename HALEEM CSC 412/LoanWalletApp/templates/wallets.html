@@ -1,0 +1,120 @@
+{% extends 'base.html' %}
+{% block title %}My Wallets — LoanWallet{% endblock %}
+{% block page_title %}My Wallets{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-heading">My Wallets</h1>
+        <p class="page-subheading">Manage your bank wallets and transactions.</p>
+    </div>
+</div>
+
+<div class="wallets-grid mb-6">
+    {% for item in wallet_data %}
+    <div class="wallet-card wallet-card--{{ forloop.counter }}">
+        <div class="wallet-card-top">
+            <div class="wallet-name">{{ item.wallet.name }}</div>
+            <div class="wallet-card-icon"><i class="fa-solid fa-credit-card"></i></div>
+        </div>
+        <div class="wallet-balance">${{ item.wallet.balance|floatformat:2 }}</div>
+        <div class="wallet-card-footer">
+            <span>Available Balance</span>
+            <button class="wallet-action" onclick="openDepositModal({{ item.wallet.id }}, '{{ item.wallet.name }}', '{{ item.wallet.balance }}')">
+                Deposit &rarr;
+            </button>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<div class="dashboard-grid">
+    {% for item in wallet_data %}
+    <div class="card">
+        <div class="card-header">
+            <h3 class="card-title">
+                <i class="fa-solid fa-receipt"></i>
+                {{ item.wallet.name }} — Transactions
+            </h3>
+            <span class="badge badge-active">{{ item.transactions|length }} recent</span>
+        </div>
+        <div class="card-body">
+            {% if item.transactions %}
+            <div class="txn-list">
+                {% for txn in item.transactions %}
+                <div class="txn-item">
+                    <div class="txn-icon txn-icon--{{ txn.transaction_type }}">
+                        {% if txn.transaction_type == 'deposit' %}<i class="fa-solid fa-arrow-down"></i>
+                        {% elif txn.transaction_type == 'loan_disbursement' %}<i class="fa-solid fa-arrow-down"></i>
+                        {% elif txn.transaction_type == 'loan_repayment' %}<i class="fa-solid fa-arrow-up"></i>
+                        {% elif txn.transaction_type == 'loan_deduction' %}<i class="fa-solid fa-minus"></i>
+                        {% else %}<i class="fa-solid fa-arrow-up"></i>{% endif %}
+                    </div>
+                    <div class="txn-info">
+                        <div class="txn-desc">{{ txn.description|default:txn.get_transaction_type_display }}</div>
+                        <div class="txn-wallet">{{ txn.created_at|date:"M d, Y • H:i" }}</div>
+                    </div>
+                    <div class="txn-amount">
+                        {% if txn.transaction_type == 'loan_repayment' or txn.transaction_type == 'loan_deduction' %}
+                            <span class="text-danger">-${{ txn.amount|floatformat:2 }}</span>
+                        {% else %}
+                            <span class="text-success">+${{ txn.amount|floatformat:2 }}</span>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="empty-state">
+                <i class="fa-solid fa-receipt empty-icon"></i>
+                <p>No transactions yet for this wallet.</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<!-- Deposit Modal -->
+<div class="modal-overlay" id="deposit-modal" onclick="closeDepositModal()">
+    <div class="modal" onclick="event.stopPropagation()">
+        <div class="modal-header">
+            <h3 class="modal-title">Deposit to <span id="modal-wallet-name"></span></h3>
+            <button class="modal-close" onclick="closeDepositModal()"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="modal-body">
+            <form method="post" id="deposit-form">
+                {% csrf_token %}
+                <div class="form-group">
+                    <label class="form-label">Amount (USD)</label>
+                    <div class="input-wrapper">
+                        <span class="input-icon input-icon-text">$</span>
+                        <input type="number" name="amount" class="form-input" placeholder="0.00"
+                               step="0.01" min="1" required id="deposit-amount">
+                    </div>
+                </div>
+                <div class="modal-footer-btns">
+                    <button type="button" class="btn btn-ghost" onclick="closeDepositModal()">Cancel</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fa-solid fa-plus"></i> Deposit
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function openDepositModal(walletId, walletName, balance) {
+    document.getElementById('modal-wallet-name').textContent = walletName;
+    document.getElementById('deposit-form').action = '/wallets/' + walletId + '/deposit/';
+    document.getElementById('deposit-amount').value = '';
+    document.getElementById('deposit-modal').classList.add('active');
+}
+function closeDepositModal() {
+    document.getElementById('deposit-modal').classList.remove('active');
+}
+</script>
+{% endblock %}

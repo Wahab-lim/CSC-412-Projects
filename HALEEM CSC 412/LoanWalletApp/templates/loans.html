@@ -1,0 +1,314 @@
+{% extends 'base.html' %}
+{% comment %} {% load loan_extras %} {% endcomment %}
+{% block title %}My Loans — LoanWallet{% endblock %}
+{% block page_title %}My Loans{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-heading">My Loans</h1>
+        <p class="page-subheading">Apply for loans and track your repayments.</p>
+    </div>
+    <button class="btn btn-primary" onclick="openLoanModal()">
+        <i class="fa-solid fa-plus"></i> Apply for Loan
+    </button>
+</div>
+
+<!-- Active Loans -->
+{% if loans %}
+<div class="loans-list">
+    {% for loan in loans %}
+    <div class="loan-card loan-card--{{ loan.status }}">
+        <div class="loan-card-header">
+            <div class="loan-card-title">
+                <span class="loan-number">Loan #{{ loan.id }}</span>
+                <span class="badge badge-{{ loan.status }}">{{ loan.get_status_display }}</span>
+            </div>
+            <div class="loan-card-amount">
+                <span class="loan-principal">${{ loan.amount|floatformat:2 }}</span>
+                <span class="loan-principal-label">Principal</span>
+            </div>
+        </div>
+
+        <div class="loan-card-body">
+            <div class="loan-details-grid">
+                <div class="loan-detail">
+                    <span class="detail-label">Total Repayable</span>
+                    <span class="detail-value">${{ loan.total_repayable|floatformat:2 }}</span>
+                </div>
+                <div class="loan-detail">
+                    <span class="detail-label">Remaining</span>
+                    <span class="detail-value text-danger">${{ loan.remaining_balance|floatformat:2 }}</span>
+                </div>
+                <div class="loan-detail">
+                    <span class="detail-label">Installment</span>
+                    <span class="detail-value">${{ loan.installment_amount|floatformat:2 }}/{{ loan.get_period_label }}</span>
+                </div>
+                <div class="loan-detail">
+                    <span class="detail-label">Payment Mode</span>
+                    <span class="detail-value">{{ loan.get_payment_mode_display }}</span>
+                </div>
+                <div class="loan-detail">
+                    <span class="detail-label">Tenure</span>
+                    <span class="detail-value">{{ loan.tenure_months }} months</span>
+                </div>
+                <div class="loan-detail">
+                    <span class="detail-label">Interest Rate</span>
+                    <span class="detail-value">{{ loan.interest_rate }}% p.a.</span>
+                </div>
+                <div class="loan-detail">
+                    <span class="detail-label">Wallet</span>
+                    <span class="detail-value">{{ loan.wallet.name }}</span>
+                </div>
+                <div class="loan-detail">
+                    <span class="detail-label">Next Payment</span>
+                    <span class="detail-value {% if loan.is_overdue_now %}text-danger{% endif %}">
+                        {% if loan.status == 'repaid' %}
+                            Fully Repaid
+                        {% elif loan.next_payment_due %}
+                            {{ loan.next_payment_due|date:"M d, Y" }}
+                            {% with days=loan.days_until_next_payment %}
+                                {% if days < 0 %}
+                                    <span class="text-danger">(Overdue!)</span>
+                                {% elif days == 0 %}
+                                    <span class="text-warning">(Today)</span>
+                                {% elif days <= 3 %}
+                                    <span class="text-warning">({{ days }}d left)</span>
+                                {% else %}
+                                    <span class="text-muted">({{ days }}d)</span>
+                                {% endif %}
+                            {% endwith %}
+                        {% else %}
+                            N/A
+                        {% endif %}
+                    </span>
+                </div>
+            </div>
+
+            {% if loan.status != 'repaid' %}
+            <div class="loan-progress">
+                <div class="progress-label">
+                    <span>Repayment Progress</span>
+                    <span>{{ loan.progress_percent }}%</span>
+                </div>
+                <div class="progress-bar">
+                    <div class="progress-fill" style="width: {{ loan.progress_percent }}%"></div>
+                </div>
+                <div class="progress-amounts">
+                    <span>Paid: ${{ loan.payments_made|floatformat:2 }}</span>
+                    <span>Total: ${{ loan.total_repayable|floatformat:2 }}</span>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        {% if loan.status != 'repaid' %}
+        <div class="loan-card-footer">
+            <button class="btn btn-sm btn-primary"
+                    onclick="openRepayModal({{ loan.id }}, '{{ loan.installment_amount|floatformat:2 }}', '{{ loan.remaining_balance|floatformat:2 }}')">
+                <i class="fa-solid fa-credit-card"></i> Make Payment
+            </button>
+            {% if loan.status == 'overdue' %}
+            <span class="overdue-notice">
+                <i class="fa-solid fa-triangle-exclamation"></i>
+                Payment overdue — deductions from wallets will be attempted automatically
+            </span>
+            {% endif %}
+        </div>
+        {% else %}
+        <div class="loan-card-footer loan-card-footer--repaid">
+            <span class="repaid-label">
+                <i class="fa-solid fa-circle-check"></i>
+                Loan fully repaid
+            </span>
+        </div>
+        {% endif %}
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="card">
+    <div class="card-body">
+        <div class="empty-state empty-state--lg">
+            <i class="fa-solid fa-hand-holding-dollar empty-icon"></i>
+            <h3>No loans yet</h3>
+            <p>Apply for your first loan to get started. We offer competitive rates with flexible repayment options.</p>
+            <button class="btn btn-primary mt-4" onclick="openLoanModal()">
+                <i class="fa-solid fa-plus"></i> Apply for a Loan
+            </button>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Apply Loan Modal -->
+<div class="modal-overlay" id="loan-modal" onclick="closeLoanModal()">
+    <div class="modal modal--lg" onclick="event.stopPropagation()">
+        <div class="modal-header">
+            <h3 class="modal-title">Apply for a Loan</h3>
+            <button class="modal-close" onclick="closeLoanModal()"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="modal-body">
+            <form method="post" action="{% url 'apply_loan' %}">
+                {% csrf_token %}
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Loan Amount</label>
+                        <div class="input-wrapper">
+                            <span class="input-icon input-icon-text">$</span>
+                            {{ loan_form.amount }}
+                        </div>
+                        <small class="form-hint">Minimum $1,000</small>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Tenure (months)</label>
+                        <div class="input-wrapper">
+                            <i class="fa-solid fa-calendar input-icon"></i>
+                            {{ loan_form.tenure_months }}
+                        </div>
+                        <small class="form-hint">3 to 60 months</small>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Payment Mode</label>
+                        {{ loan_form.payment_mode }}
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Disburse to Wallet</label>
+                        {{ loan_form.wallet }}
+                    </div>
+                </div>
+
+                <!-- Loan Calculator Preview -->
+                <div class="loan-calculator" id="loan-calculator" style="display:none;">
+                    <div class="calculator-title">
+                        <i class="fa-solid fa-calculator"></i>
+                        Loan Summary Preview
+                    </div>
+                    <div class="calculator-grid">
+                        <div class="calc-item">
+                            <span class="calc-label">Principal</span>
+                            <span class="calc-value" id="calc-principal">—</span>
+                        </div>
+                        <div class="calc-item">
+                            <span class="calc-label">Interest (5% p.a.)</span>
+                            <span class="calc-value" id="calc-interest">—</span>
+                        </div>
+                        <div class="calc-item">
+                            <span class="calc-label">Total Repayable</span>
+                            <span class="calc-value calc-value--highlight" id="calc-total">—</span>
+                        </div>
+                        <div class="calc-item">
+                            <span class="calc-label">Installment</span>
+                            <span class="calc-value calc-value--highlight" id="calc-installment">—</span>
+                        </div>
+                    </div>
+                    <p class="calc-note">
+                        <i class="fa-solid fa-circle-info"></i>
+                        Compound interest at 5% per annum applied monthly.
+                    </p>
+                </div>
+
+                <div class="modal-footer-btns">
+                    <button type="button" class="btn btn-ghost" onclick="closeLoanModal()">Cancel</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fa-solid fa-hand-holding-dollar"></i> Submit Application
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Repay Loan Modal -->
+<div class="modal-overlay" id="repay-modal" onclick="closeRepayModal()">
+    <div class="modal" onclick="event.stopPropagation()">
+        <div class="modal-header">
+            <h3 class="modal-title">Make Loan Payment</h3>
+            <button class="modal-close" onclick="closeRepayModal()"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="modal-body">
+            <div class="repay-info">
+                <span>Installment: <strong id="repay-installment">—</strong></span>
+                <span>Remaining: <strong id="repay-remaining" class="text-danger">—</strong></span>
+            </div>
+            <form method="post" id="repay-form">
+                {% csrf_token %}
+                <div class="form-group">
+                    <label class="form-label">Pay from Wallet</label>
+                    {{ repay_form.wallet }}
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Amount</label>
+                    <div class="input-wrapper">
+                        <span class="input-icon input-icon-text">$</span>
+                        {{ repay_form.amount }}
+                    </div>
+                </div>
+                <div class="modal-footer-btns">
+                    <button type="button" class="btn btn-ghost" onclick="closeRepayModal()">Cancel</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fa-solid fa-credit-card"></i> Pay Now
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function openLoanModal() {
+    document.getElementById('loan-modal').classList.add('active');
+}
+function closeLoanModal() {
+    document.getElementById('loan-modal').classList.remove('active');
+}
+
+function openRepayModal(loanId, installment, remaining) {
+    document.getElementById('repay-form').action = '/loans/' + loanId + '/repay/';
+    document.getElementById('repay-installment').textContent = '$' + installment;
+    document.getElementById('repay-remaining').textContent = '$' + remaining;
+    document.getElementById('repay-modal').querySelector('[name="amount"]').value = installment;
+    document.getElementById('repay-modal').classList.add('active');
+}
+function closeRepayModal() {
+    document.getElementById('repay-modal').classList.remove('active');
+}
+
+// Loan calculator
+function updateLoanCalculator() {
+    const amount = parseFloat(document.getElementById('loan-amount').value) || 0;
+    const months = parseInt(document.getElementById('loan-tenure').value) || 0;
+    const mode = document.getElementById('loan-payment-mode').value;
+
+    if (amount >= 1000 && months >= 3) {
+        const monthlyRate = 5.0 / 100 / 12;
+        const total = amount * Math.pow(1 + monthlyRate, months);
+        const interest = total - amount;
+
+        let periods;
+        let periodLabel;
+        if (mode === 'weekly') { periods = months * 4; periodLabel = 'week'; }
+        else if (mode === 'biweekly') { periods = months * 2; periodLabel = '2 weeks'; }
+        else { periods = months; periodLabel = 'month'; }
+
+        const installment = total / periods;
+
+        document.getElementById('calc-principal').textContent = '$' + amount.toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2});
+        document.getElementById('calc-interest').textContent = '$' + interest.toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2});
+        document.getElementById('calc-total').textContent = '$' + total.toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2});
+        document.getElementById('calc-installment').textContent = '$' + installment.toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2}) + '/' + periodLabel;
+        document.getElementById('loan-calculator').style.display = 'block';
+    } else {
+        document.getElementById('loan-calculator').style.display = 'none';
+    }
+}
+
+document.getElementById('loan-amount').addEventListener('input', updateLoanCalculator);
+document.getElementById('loan-tenure').addEventListener('input', updateLoanCalculator);
+document.getElementById('loan-payment-mode').addEventListener('change', updateLoanCalculator);
+</script>
+{% endblock %}

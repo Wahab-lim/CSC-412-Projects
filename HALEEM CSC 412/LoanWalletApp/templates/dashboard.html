@@ -1,0 +1,177 @@
+{% extends 'base.html' %}
+{% block title %}Dashboard — LoanWallet{% endblock %}
+{% block page_title %}Dashboard{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-heading">Good day, {{ user.first_name|default:user.username }}!</h1>
+        <p class="page-subheading">Here's an overview of your finances.</p>
+    </div>
+</div>
+
+<!-- Stat Cards -->
+<div class="stats-grid">
+    <div class="stat-card stat-card--blue">
+        <div class="stat-card-icon">
+            <i class="fa-solid fa-wallet"></i>
+        </div>
+        <div class="stat-card-body">
+            <div class="stat-label">Total Balance</div>
+            <div class="stat-value">${{ total_balance|floatformat:2 }}</div>
+            <div class="stat-meta">Across {{ wallets|length }} wallet{{ wallets|length|pluralize }}</div>
+        </div>
+    </div>
+
+    <div class="stat-card stat-card--purple">
+        <div class="stat-card-icon">
+            <i class="fa-solid fa-hand-holding-dollar"></i>
+        </div>
+        <div class="stat-card-body">
+            <div class="stat-label">Outstanding Loans</div>
+            <div class="stat-value">${{ outstanding_loans|floatformat:2 }}</div>
+            <div class="stat-meta">{{ active_loans_count }} active loan{{ active_loans_count|pluralize }}</div>
+        </div>
+    </div>
+
+    <div class="stat-card {% if next_payment_loan %}stat-card--amber{% else %}stat-card--green{% endif %}">
+        <div class="stat-card-icon">
+            <i class="fa-solid fa-calendar-check"></i>
+        </div>
+        <div class="stat-card-body">
+            <div class="stat-label">Next Payment</div>
+            {% if next_payment_loan %}
+                <div class="stat-value">${{ next_payment_loan.installment_amount|floatformat:2 }}</div>
+                <div class="stat-meta">
+                    {% with days=next_payment_loan.days_until_next_payment %}
+                        {% if days < 0 %}
+                            <span class="text-danger"><i class="fa-solid fa-circle-exclamation"></i> Overdue!</span>
+                        {% elif days == 0 %}
+                            <span class="text-warning">Due today!</span>
+                        {% else %}
+                            Due in {{ days }} day{{ days|pluralize }}
+                        {% endif %}
+                    {% endwith %}
+                </div>
+            {% else %}
+                <div class="stat-value">None</div>
+                <div class="stat-meta">No upcoming payments</div>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="stat-card stat-card--teal">
+        <div class="stat-card-icon">
+            <i class="fa-solid fa-building-columns"></i>
+        </div>
+        <div class="stat-card-body">
+            <div class="stat-label">My Wallets</div>
+            <div class="stat-value">{{ wallets|length }}</div>
+            <div class="stat-meta">
+                <a href="{% url 'wallets' %}" class="stat-link">Manage wallets &rarr;</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="dashboard-grid">
+    <!-- Recent Loans -->
+    <div class="card">
+        <div class="card-header">
+            <h3 class="card-title"><i class="fa-solid fa-hand-holding-dollar"></i> Recent Loans</h3>
+            <a href="{% url 'loans' %}" class="card-link">View all</a>
+        </div>
+        <div class="card-body">
+            {% if recent_loans %}
+            <div class="loan-list">
+                {% for loan in recent_loans %}
+                <div class="loan-item">
+                    <div class="loan-item-left">
+                        <div class="loan-amount">${{ loan.amount|floatformat:2 }}</div>
+                        <div class="loan-meta">
+                            {{ loan.tenure_months }} months &bull; {{ loan.get_payment_mode_display }}
+                        </div>
+                    </div>
+                    <div class="loan-item-right">
+                        <span class="badge badge-{{ loan.status }}">{{ loan.get_status_display }}</span>
+                        <div class="loan-balance">${{ loan.remaining_balance|floatformat:2 }} left</div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="empty-state">
+                <i class="fa-solid fa-hand-holding-dollar empty-icon"></i>
+                <p>No loans yet. <a href="{% url 'loans' %}">Apply for one</a></p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Recent Transactions -->
+    <div class="card">
+        <div class="card-header">
+            <h3 class="card-title"><i class="fa-solid fa-receipt"></i> Recent Transactions</h3>
+            <a href="{% url 'wallets' %}" class="card-link">View all</a>
+        </div>
+        <div class="card-body">
+            {% if recent_transactions %}
+            <div class="txn-list">
+                {% for txn in recent_transactions %}
+                <div class="txn-item">
+                    <div class="txn-icon txn-icon--{{ txn.transaction_type }}">
+                        {% if txn.transaction_type == 'deposit' %}<i class="fa-solid fa-arrow-down"></i>
+                        {% elif txn.transaction_type == 'loan_disbursement' %}<i class="fa-solid fa-arrow-down"></i>
+                        {% elif txn.transaction_type == 'loan_repayment' %}<i class="fa-solid fa-arrow-up"></i>
+                        {% elif txn.transaction_type == 'loan_deduction' %}<i class="fa-solid fa-minus"></i>
+                        {% else %}<i class="fa-solid fa-arrow-up"></i>{% endif %}
+                    </div>
+                    <div class="txn-info">
+                        <div class="txn-desc">{{ txn.description|default:txn.get_transaction_type_display }}</div>
+                        <div class="txn-wallet">{{ txn.wallet.name }}</div>
+                    </div>
+                    <div class="txn-amount txn-amount--{{ txn.transaction_type }}">
+                        {% if txn.transaction_type == 'loan_repayment' or txn.transaction_type == 'loan_deduction' %}
+                            <span class="text-danger">-${{ txn.amount|floatformat:2 }}</span>
+                        {% else %}
+                            <span class="text-success">+${{ txn.amount|floatformat:2 }}</span>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="empty-state">
+                <i class="fa-solid fa-receipt empty-icon"></i>
+                <p>No transactions yet. <a href="{% url 'wallets' %}">Make a deposit</a></p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Wallets Quick View -->
+<div class="card mt-6">
+    <div class="card-header">
+        <h3 class="card-title"><i class="fa-solid fa-building-columns"></i> Wallet Overview</h3>
+        <a href="{% url 'wallets' %}" class="card-link">Manage</a>
+    </div>
+    <div class="card-body">
+        <div class="wallets-grid">
+            {% for wallet in wallets %}
+            <div class="wallet-card wallet-card--{{ forloop.counter }}">
+                <div class="wallet-card-top">
+                    <div class="wallet-name">{{ wallet.name }}</div>
+                    <div class="wallet-card-icon"><i class="fa-solid fa-credit-card"></i></div>
+                </div>
+                <div class="wallet-balance">${{ wallet.balance|floatformat:2 }}</div>
+                <div class="wallet-card-footer">
+                    <span>Available Balance</span>
+                    <a href="{% url 'wallets' %}" class="wallet-action">Deposit &rarr;</a>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endblock %}

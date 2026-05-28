@@ -1,0 +1,104 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}LoanWallet{% endblock %}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <link rel="stylesheet" href="{% static 'css/style.css' %}">
+</head>
+<body class="app-body">
+
+<div class="app-layout">
+    <!-- Sidebar -->
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <div class="sidebar-logo">
+                <div class="logo-icon"><i class="fa-solid fa-wallet"></i></div>
+                <span class="logo-text">LoanWallet</span>
+            </div>
+            <button class="sidebar-close" id="sidebar-close" onclick="toggleSidebar()">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </div>
+
+        <nav class="sidebar-nav">
+            <a href="{% url 'dashboard' %}" class="nav-item {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}">
+                <span class="nav-icon"><i class="fa-solid fa-chart-pie"></i></span>
+                <span class="nav-label">Dashboard</span>
+            </a>
+            <a href="{% url 'wallets' %}" class="nav-item {% if request.resolver_match.url_name == 'wallets' %}active{% endif %}">
+                <span class="nav-icon"><i class="fa-solid fa-building-columns"></i></span>
+                <span class="nav-label">My Wallets</span>
+            </a>
+            <a href="{% url 'loans' %}" class="nav-item {% if request.resolver_match.url_name == 'loans' %}active{% endif %}">
+                <span class="nav-icon"><i class="fa-solid fa-hand-holding-dollar"></i></span>
+                <span class="nav-label">My Loans</span>
+            </a>
+        </nav>
+
+        <div class="sidebar-footer">
+            <div class="sidebar-user">
+                <div class="user-avatar">{{ user.first_name|first|upper }}{{ user.last_name|first|upper }}</div>
+                <div class="user-info">
+                    <div class="user-name">{{ user.get_full_name|default:user.username }}</div>
+                    <div class="user-email">{{ user.email }}</div>
+                </div>
+            </div>
+            <a href="{% url 'logout' %}" class="logout-btn">
+                <i class="fa-solid fa-right-from-bracket"></i>
+                <span>Logout</span>
+            </a>
+        </div>
+    </aside>
+
+    <div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleSidebar()"></div>
+
+    <!-- Main content -->
+    <main class="main-content">
+        <header class="topbar">
+            <button class="hamburger" onclick="toggleSidebar()">
+                <i class="fa-solid fa-bars"></i>
+            </button>
+            <div class="topbar-title">{% block page_title %}Dashboard{% endblock %}</div>
+            <div class="topbar-actions">
+                <span class="topbar-user">
+                    <div class="topbar-avatar">{{ user.first_name|first|upper }}{{ user.last_name|first|upper }}</div>
+                    <span class="topbar-username">{{ user.first_name|default:user.username }}</span>
+                </span>
+            </div>
+        </header>
+
+        {% if messages %}
+        <div class="messages-container">
+            {% for message in messages %}
+            <div class="alert alert-{{ message.tags }} alert-dismissible" role="alert">
+                <span class="alert-icon">
+                    {% if message.tags == 'success' %}<i class="fa-solid fa-circle-check"></i>
+                    {% elif message.tags == 'error' %}<i class="fa-solid fa-circle-xmark"></i>
+                    {% elif message.tags == 'warning' %}<i class="fa-solid fa-triangle-exclamation"></i>
+                    {% else %}<i class="fa-solid fa-circle-info"></i>{% endif %}
+                </span>
+                {{ message }}
+                <button class="alert-close" onclick="this.parentElement.remove()">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        <div class="page-content">
+            {% block content %}{% endblock %}
+        </div>
+    </main>
+</div>
+
+<script src="{% static 'js/main.js' %}"></script>
+{% block extra_js %}{% endblock %}
+</body>
+</html>

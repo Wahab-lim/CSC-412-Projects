@@ -1,0 +1,72 @@
+{% extends 'base_auth.html' %}
+{% block title %}Login — LoanWallet{% endblock %}
+
+{% block content %}
+<div class="auth-page">
+    <div class="auth-split">
+        <div class="auth-brand">
+            <div class="brand-logo">
+                <i class="fa-solid fa-wallet"></i>
+            </div>
+            <h1 class="brand-title">LoanWallet</h1>
+            <p class="brand-tagline">Smart loan management & digital wallet at your fingertips.</p>
+            <div class="brand-features">
+                <div class="brand-feature">
+                    <i class="fa-solid fa-shield-halved"></i>
+                    <span>Secure & Encrypted</span>
+                </div>
+                <div class="brand-feature">
+                    <i class="fa-solid fa-bolt"></i>
+                    <span>Instant Disbursement</span>
+                </div>
+                <div class="brand-feature">
+                    <i class="fa-solid fa-chart-line"></i>
+                    <span>Track Everything</span>
+                </div>
+            </div>
+        </div>
+        <div class="auth-form-side">
+            <div class="auth-card">
+                <div class="auth-card-header">
+                    <h2>Welcome back</h2>
+                    <p>Sign in to your account</p>
+                </div>
+
+                {% if messages %}
+                <div class="auth-messages-inner">
+                    {% for message in messages %}
+                    <div class="alert alert-{{ message.tags }}">{{ message }}</div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+
+                <form method="post" action="{% url 'login' %}" class="auth-form">
+                    {% csrf_token %}
+                    <div class="form-group">
+                        <label class="form-label" for="id_username">Username</label>
+                        <div class="input-wrapper">
+                            <i class="fa-solid fa-user input-icon"></i>
+                            {{ form.username }}
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="id_password">Password</label>
+                        <div class="input-wrapper">
+                            <i class="fa-solid fa-lock input-icon"></i>
+                            {{ form.password }}
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-block">
+                        <i class="fa-solid fa-right-to-bracket"></i>
+                        Sign In
+                    </button>
+                </form>
+
+                <div class="auth-footer">
+                    <p>Don't have an account? <a href="{% url 'register' %}">Create one</a></p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
